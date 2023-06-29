@@ -1,4 +1,5 @@
 export const Config = {
-  port: process.env.LISTEN_PORT,
-  entrepriseToken: process.env.ENTREPRISE_TOKEN ?? '',
+  port: process.env.SIRET_EXTRACTOR_PORT,
+  entrepriseToken: process.env.SIRET_EXTRACTOR_ENTREPRISE_TOKEN ?? '',
+  apiKeyHash: process.env.SIRET_EXTRACTOR_API_KEY_HASH ?? '',
 }
