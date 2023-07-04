@@ -20,11 +20,17 @@ export interface SiretOrSiren {
   links: string[]
 }
 
-export interface Full {
+export interface Extraction {
   website: string
   siret?: Siret
   siren?: Siren
   links: string[]
   name?: string
   isOpen?: boolean
+}
+
+export interface Result {
+  status: 'success' | 'failure'
+  extractions?: Extraction[]
+  error?: string
 }
