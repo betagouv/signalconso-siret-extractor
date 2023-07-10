@@ -2,7 +2,24 @@ import jsdom from 'jsdom'
 import {PageNotFoundException, WebsiteNotFoundException} from './utils/exceptions.js'
 
 export const headUrl = async (url: URL, manuelRedirect: boolean): Promise<Response> => {
-  const options: any = manuelRedirect ? {method: 'HEAD', redirect: 'manual'} : {method: 'HEAD'}
+  const options: any = manuelRedirect
+    ? {
+        method: 'HEAD',
+        redirect: 'manual',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/114.0',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'Accept-Language': 'fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3',
+        },
+      }
+    : {
+        method: 'HEAD',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/114.0',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'Accept-Language': 'fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3',
+        },
+      }
   try {
     return fetch(url, options)
   } catch {
@@ -11,7 +28,14 @@ export const headUrl = async (url: URL, manuelRedirect: boolean): Promise<Respon
 }
 
 export const fetchUrl = async (url: URL): Promise<string> => {
-  const response = await fetch(url)
+  const options = {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/114.0',
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+      'Accept-Language': 'fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3',
+    },
+  }
+  const response = await fetch(url, options)
   const body = await response.text()
 
   if (response.status >= 200 && response.status < 400) {

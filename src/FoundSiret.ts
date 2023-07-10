@@ -25,12 +25,34 @@ export interface Extraction {
   siret?: Siret
   siren?: Siren
   links: string[]
-  name?: string
-  isOpen?: boolean
+  sirene?: Sirene
 }
 
 export interface Result {
   status: 'success' | 'failure'
   extractions?: Extraction[]
   error?: string
+}
+
+export interface Address {
+  number?: string
+  street?: string
+  addressSupplement?: string
+  postalCode?: string
+  city?: string
+  country?: string
+}
+
+export interface Sirene {
+  siret: string
+  name?: string
+  commercialName?: string
+  brand?: string
+  isHeadOffice: boolean
+  isOpen: boolean
+  isPublic: boolean
+  address: Address
+  activityCode: string
+  activityLabel?: string
+  isMarketPlace: boolean
 }

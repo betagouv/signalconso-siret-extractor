@@ -1,8 +1,8 @@
 import {findSiretsOrSirens} from './siret.js'
 import {fetchUrl, headUrl, parseHomepage, parseSitemap} from './parsers.js'
-import {FoundSiretOrSiren, Extraction, SiretOrSiren, Result} from './FoundSiret.js'
+import {FoundSiretOrSiren, Extraction, SiretOrSiren, Result, Sirene} from './FoundSiret.js'
 import {WebsiteFailedException, WebsiteNotFoundException} from './utils/exceptions.js'
-import {Sirene, fetchSiretInfo} from './apiClients.js'
+import {fetchSiretInfo} from './apiClients.js'
 import {Config} from './config.js'
 
 export const extract = async (website: string): Promise<Result> => {
@@ -62,12 +62,12 @@ const potentialPageFilter = (link: string): boolean => {
 const findPotentialPages = (links: string[]): string[] => links.filter(link => potentialPageFilter(link))
 
 const getSitemapUrl = async (url: string) => {
-  const robotsTxt = await fetchUrl(new URL(`${url}/robots.txt`))
+  const robotsTxt = await fetchUrl(new URL('/robots.txt', url))
   const sitemapLine = robotsTxt.split('\n').find(line => line.match(/^Sitemap/g))
   if (sitemapLine) {
     return sitemapLine.split('Sitemap: ')[1]
   } else {
-    return `${url}/sitemap.xml`
+    return new URL('/sitemap.xml', url).href
   }
 }
 
@@ -180,8 +180,7 @@ const merge = (url: string, sirenes: Map<string, Sirene>, siretsOrSirens: SiretO
       siret: siretOrSiren.siret,
       siren: siretOrSiren.siren,
       links: siretOrSiren.links,
-      name: siretOrSiren.siret && sirenes.get(siretOrSiren.siret.siret)?.name,
-      isOpen: siretOrSiren.siret && sirenes.get(siretOrSiren.siret.siret)?.isOpen,
+      sirene: siretOrSiren.siret && sirenes.get(siretOrSiren.siret.siret),
     }
   })
 }

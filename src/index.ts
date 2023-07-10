@@ -4,6 +4,7 @@ import {UnknownRoutesHandler} from './middlewares/unknown.handler.js'
 import {ExceptionsHandler} from './middlewares/exceptions.handler.js'
 import {ExtractController} from './extract.controller.js'
 import {Config} from './config.js'
+import {ToolsController} from './tools.controller.js'
 
 const app = express()
 const port = Config.port
@@ -22,6 +23,8 @@ app.use(express.json())
 app.use(cors())
 
 app.use('/extract', ExtractController)
+
+app.use('/tools', ToolsController)
 
 /**
  * Pour toutes les autres routes non définies, on retourne une erreur
