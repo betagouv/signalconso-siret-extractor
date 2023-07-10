@@ -1,22 +1,43 @@
 import {findSiretsOrSirens} from './siret.js'
 import {fetchUrl, headUrl, parseHomepage, parseSitemap} from './parsers.js'
-import {FoundSiretOrSiren, Full, SiretOrSiren} from './FoundSiret.js'
+import {FoundSiretOrSiren, Extraction, SiretOrSiren, Result, Sirene} from './FoundSiret.js'
 import {WebsiteFailedException, WebsiteNotFoundException} from './utils/exceptions.js'
-import {Sirene, fetchSiretInfo} from './apiClients.js'
+import {fetchSiretInfo} from './apiClients.js'
 import {Config} from './config.js'
 
-export const extract = async (website: string) => {
-  const siretOrSirens = await compute(website)
-  const expanded = expand(siretOrSirens)
+export const extract = async (website: string): Promise<Result> => {
+  try {
+    const siretOrSirens = await compute(website)
 
-  const filtered = expanded
-    .filter(_ => _.siret?.valid === true)
-    .flatMap(_ => _.siret?.siret)
-    .filter((item): item is string => !!item)
+    const expanded = expand(siretOrSirens)
 
-  const infosFromSirene = await fetchSiretInfo(filtered, Config.entrepriseToken)
+    const filtered = expanded
+      .filter(_ => _.siret?.valid === true)
+      .flatMap(_ => _.siret?.siret)
+      .filter((item): item is string => !!item)
 
-  return merge(website, toMap(infosFromSirene), expanded)
+    const infosFromSirene = await fetchSiretInfo(filtered, Config.entrepriseToken)
+    const extractions = merge(website, toMap(infosFromSirene), expanded)
+
+    return {
+      status: 'success',
+      extractions: extractions,
+    }
+  } catch (e: any) {
+    if (e instanceof WebsiteNotFoundException) {
+      return {
+        status: 'failure',
+        error: 'NOT_FOUND',
+      }
+    } else if (e instanceof WebsiteFailedException) {
+      return {
+        status: 'failure',
+        error: 'FAILED',
+      }
+    } else {
+      throw e
+    }
+  }
 }
 
 const potentialPageFilter = (link: string): boolean => {
@@ -40,11 +61,21 @@ const potentialPageFilter = (link: string): boolean => {
 
 const findPotentialPages = (links: string[]): string[] => links.filter(link => potentialPageFilter(link))
 
-const fromSitemap = async (url: string): Promise<FoundSiretOrSiren[]> => {
+const getSitemapUrl = async (url: string) => {
+  const robotsTxt = await fetchUrl(new URL('/robots.txt', url))
+  const sitemapLine = robotsTxt.split('\n').find(line => line.match(/^Sitemap/g))
+  if (sitemapLine) {
+    return sitemapLine.split('Sitemap: ')[1]
+  } else {
+    return new URL('/sitemap.xml', url).href
+  }
+}
+
+const fromSitemap = async (sitemapUrl: string): Promise<FoundSiretOrSiren[]> => {
   try {
-    const mainSitemap = await fetchUrl(new URL(`${url}/sitemap.xml`))
+    const mainSitemap = await fetchUrl(new URL(sitemapUrl))
     const links = await parseSitemap(mainSitemap)
-    const potentialLinks = findPotentialPages(links.concat(url))
+    const potentialLinks = findPotentialPages(links)
 
     return findSiretsOrSirens(potentialLinks, fetchUrl)
   } catch {
@@ -66,9 +97,10 @@ const fromHomepage = async (url: string): Promise<FoundSiretOrSiren[]> => {
 
 const from = async (url: string): Promise<FoundSiretOrSiren[]> => {
   try {
-    const response = await headUrl(new URL(`${url}/sitemap.xml`), false)
+    const sitemapUrl = await getSitemapUrl(url)
+    const response = await headUrl(new URL(sitemapUrl), false)
     if (response.status >= 200 && response.status < 400) {
-      const res = await fromSitemap(url)
+      const res = await fromSitemap(sitemapUrl)
       if (res.length === 0) {
         return fromHomepage(url)
       } else {
@@ -141,15 +173,14 @@ const toMap = (sirenes: Sirene[]): Map<string, Sirene> => {
   }, new Map<string, Sirene>())
 }
 
-const merge = (url: string, sirenes: Map<string, Sirene>, siretsOrSirens: SiretOrSiren[]): Full[] => {
+const merge = (url: string, sirenes: Map<string, Sirene>, siretsOrSirens: SiretOrSiren[]): Extraction[] => {
   return siretsOrSirens.map(siretOrSiren => {
     return {
       website: url,
       siret: siretOrSiren.siret,
       siren: siretOrSiren.siren,
       links: siretOrSiren.links,
-      name: siretOrSiren.siret && sirenes.get(siretOrSiren.siret.siret)?.name,
-      isOpen: siretOrSiren.siret && sirenes.get(siretOrSiren.siret.siret)?.isOpen,
+      sirene: siretOrSiren.siret && sirenes.get(siretOrSiren.siret.siret),
     }
   })
 }
