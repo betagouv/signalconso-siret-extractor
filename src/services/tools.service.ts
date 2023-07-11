@@ -13,7 +13,11 @@ const lookup = (domain: string): Promise<string> => {
   })
 }
 
-export const dig = (websiteURL: string): Promise<string> => {
-  const domain = new URL(websiteURL).hostname
-  return lookup(domain)
+export const dig = (website: string): Promise<string> => {
+  try {
+    const domain = new URL(website).hostname
+    return lookup(domain)
+  } catch {
+    return lookup(website)
+  }
 }
