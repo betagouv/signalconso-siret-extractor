@@ -1,4 +1,4 @@
-import {Sirene} from './FoundSiret.js'
+import {Sirene} from '../models/model.js'
 
 export const fetchSiretInfo = async (sirets: string[], token: string): Promise<Sirene[]> => {
   const res = await fetch('https://entreprise.signal.conso.gouv.fr/api/companies/search', {
