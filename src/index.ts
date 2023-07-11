@@ -2,9 +2,9 @@ import express from 'express'
 import cors from 'cors'
 import {UnknownRoutesHandler} from './middlewares/unknown.handler.js'
 import {ExceptionsHandler} from './middlewares/exceptions.handler.js'
-import {ExtractController} from './extract.controller.js'
-import {Config} from './config.js'
-import {ToolsController} from './tools.controller.js'
+import {ExtractController} from './controllers/extract.controller.js'
+import {Config} from './config/config.js'
+import {ToolsController} from './controllers/tools.controller.js'
 
 const app = express()
 const port = Config.port

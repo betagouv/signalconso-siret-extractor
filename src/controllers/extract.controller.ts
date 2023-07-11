@@ -1,7 +1,7 @@
 import {Request, Router} from 'express'
-import {extract} from './extract.service.js'
+import {extract} from '../services/extract.service.js'
 import * as argon2 from 'argon2'
-import {Config} from './config.js'
+import {Config} from '../config/config.js'
 
 const ExtractController = Router()
 

@@ -8,7 +8,7 @@ export interface Siren {
   valid: boolean
 }
 
-export interface FoundSiretOrSiren {
+export interface SiretsOrSirens {
   sirets: Siret[]
   sirens: Siren[]
   link: string

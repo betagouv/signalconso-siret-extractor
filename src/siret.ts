@@ -1,5 +1,5 @@
 import jsdom from 'jsdom'
-import {FoundSiretOrSiren, Siren, Siret} from './FoundSiret.js'
+import {SiretsOrSirens, Siren, Siret} from './models/model.js'
 
 const siretRegex = /\b\d{3}(?:\s?\d{3}){2}(?:\s?\d{5})\b/g
 const sirenRegex = /\b\d{3}(?:\s?\d{3}){2}\b/g
@@ -86,7 +86,7 @@ const naiveInnerText = (node: Node): string => {
 export const findSiretsOrSirens = async (
   links: string[],
   fetchPage: (link: URL) => Promise<string>,
-): Promise<FoundSiretOrSiren[]> => {
+): Promise<SiretsOrSirens[]> => {
   const link = links.pop()
   if (link) {
     try {
