@@ -1,5 +1,5 @@
 import {Request, Router} from 'express'
-import {dig} from './tools.service.js'
+import {dig} from '../services/tools.service.js'
 
 const ToolsController = Router()
 

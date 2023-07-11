@@ -1,23 +1,31 @@
-import {findSiretsOrSirens} from './siret.js'
-import {fetchUrl, headUrl, parseHomepage, parseSitemap} from './parsers.js'
-import {FoundSiretOrSiren, Extraction, SiretOrSiren, Result, Sirene} from './FoundSiret.js'
-import {WebsiteFailedException, WebsiteNotFoundException} from './utils/exceptions.js'
-import {fetchSiretInfo} from './apiClients.js'
-import {Config} from './config.js'
+import {findSiretsOrSirens} from '../siret.js'
+import {fetchUrl, headUrl, parseHomepage, parseSitemap} from '../clients/parsers.js'
+import {SiretsOrSirens, Extraction, SiretOrSiren, Result, Sirene} from '../models/model.js'
+import {WebsiteFailedException, WebsiteNotFoundException} from '../utils/exceptions.js'
+import {fetchSirenInfo, fetchSiretInfo} from '../clients/entreprise.api.client.js'
+import {Config} from '../config/config.js'
 
 export const extract = async (website: string): Promise<Result> => {
   try {
-    const siretOrSirens = await compute(website)
+    const siretOrSirens = await extractFrom(website)
 
-    const expanded = expand(siretOrSirens)
+    const expanded = isInBlacklist(Config.blackList, expand(siretOrSirens))
 
-    const filtered = expanded
+    const filteredBySiret = expanded
       .filter(_ => _.siret?.valid === true)
       .flatMap(_ => _.siret?.siret)
       .filter((item): item is string => !!item)
 
-    const infosFromSirene = await fetchSiretInfo(filtered, Config.entrepriseToken)
-    const extractions = merge(website, toMap(infosFromSirene), expanded)
+    const siretInfosFromSirene = await fetchSiretInfo(filteredBySiret, Config.entrepriseToken)
+
+    const filteredBySiren = expanded
+      .filter(_ => _.siren?.valid === true)
+      .flatMap(_ => _.siren?.siren)
+      .filter((item): item is string => !!item)
+
+    const sirenInfosFromSirene = await fetchSirenInfo(filteredBySiren, Config.entrepriseToken)
+
+    const extractions = merge(website, toMap(siretInfosFromSirene), toMap(sirenInfosFromSirene), expanded)
 
     return {
       status: 'success',
@@ -60,7 +68,19 @@ const potentialPageFilter = (link: string): boolean => {
   )
 }
 
-const findPotentialPages = (links: string[]): string[] => links.filter(link => potentialPageFilter(link))
+export const isInList = (sirens: string[], siretOrSiren: SiretOrSiren): boolean => {
+  const isInList =
+    (siretOrSiren.siren && sirens.includes(siretOrSiren.siren.siren)) ||
+    (siretOrSiren.siret && sirens.includes(siretOrSiren.siret.siret.substring(0, 9)))
+
+  return !!isInList
+}
+
+export const isInBlacklist = (sirens: string[], siretsOrSirens: SiretOrSiren[]) => {
+  return siretsOrSirens.filter(siretOrSiren => !isInList(sirens, siretOrSiren))
+}
+
+export const findPotentialPages = (links: string[]): string[] => links.filter(link => potentialPageFilter(link))
 
 const getSitemapUrl = async (url: string) => {
   const robotsTxt = await fetchUrl(new URL('/robots.txt', url))
@@ -72,7 +92,7 @@ const getSitemapUrl = async (url: string) => {
   }
 }
 
-const fromSitemap = async (sitemapUrl: string): Promise<FoundSiretOrSiren[]> => {
+const fromSitemap = async (sitemapUrl: string): Promise<SiretsOrSirens[]> => {
   try {
     const mainSitemap = await fetchUrl(new URL(sitemapUrl))
     const links = await parseSitemap(mainSitemap)
@@ -84,7 +104,7 @@ const fromSitemap = async (sitemapUrl: string): Promise<FoundSiretOrSiren[]> => 
   }
 }
 
-const fromHomepage = async (url: string): Promise<FoundSiretOrSiren[]> => {
+const fromHomepage = async (url: string): Promise<SiretsOrSirens[]> => {
   try {
     const homepage = await fetchUrl(new URL(url))
     const links = await parseHomepage(url, homepage)
@@ -96,7 +116,7 @@ const fromHomepage = async (url: string): Promise<FoundSiretOrSiren[]> => {
   }
 }
 
-const from = async (url: string): Promise<FoundSiretOrSiren[]> => {
+const from = async (url: string): Promise<SiretsOrSirens[]> => {
   try {
     const sitemapUrl = await getSitemapUrl(url)
     const response = await headUrl(new URL(sitemapUrl), false)
@@ -144,12 +164,12 @@ const finalUrl = async (
   }
 }
 
-const compute = async (hostname: string): Promise<FoundSiretOrSiren[]> => {
+const extractFrom = async (hostname: string): Promise<SiretsOrSirens[]> => {
   const url = await finalUrl(hostname)
   return from(url)
 }
 
-const expand = (founds: FoundSiretOrSiren[]): SiretOrSiren[] => {
+const expand = (founds: SiretsOrSirens[]): SiretOrSiren[] => {
   const map = new Map<string, SiretOrSiren>()
   founds.forEach(found => {
     found.sirens.forEach(siren => {
@@ -174,14 +194,21 @@ const toMap = (sirenes: Sirene[]): Map<string, Sirene> => {
   }, new Map<string, Sirene>())
 }
 
-const merge = (url: string, sirenes: Map<string, Sirene>, siretsOrSirens: SiretOrSiren[]): Extraction[] => {
+const merge = (
+  url: string,
+  siretsInfos: Map<string, Sirene>,
+  sirensInfos: Map<string, Sirene>,
+  siretsOrSirens: SiretOrSiren[],
+): Extraction[] => {
   return siretsOrSirens.map(siretOrSiren => {
     return {
       website: url,
       siret: siretOrSiren.siret,
       siren: siretOrSiren.siren,
       links: siretOrSiren.links,
-      sirene: siretOrSiren.siret && sirenes.get(siretOrSiren.siret.siret),
+      sirene:
+        (siretOrSiren.siret && siretsInfos.get(siretOrSiren.siret.siret)) ||
+        (siretOrSiren.siren && sirensInfos.get(siretOrSiren.siren.siren)),
     }
   })
 }

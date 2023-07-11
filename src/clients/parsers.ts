@@ -1,5 +1,5 @@
 import jsdom from 'jsdom'
-import {PageNotFoundException, WebsiteNotFoundException} from './utils/exceptions.js'
+import {PageNotFoundException, WebsiteNotFoundException} from '../utils/exceptions.js'
 
 export const headUrl = async (url: URL, manuelRedirect: boolean): Promise<Response> => {
   const options: any = manuelRedirect
