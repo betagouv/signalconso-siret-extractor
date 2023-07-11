@@ -2,7 +2,7 @@ import {findSiretsOrSirens} from '../siret.js'
 import {fetchUrl, headUrl, parseHomepage, parseSitemap} from '../clients/parsers.js'
 import {SiretsOrSirens, Extraction, SiretOrSiren, Result, Sirene} from '../models/model.js'
 import {WebsiteFailedException, WebsiteNotFoundException} from '../utils/exceptions.js'
-import {fetchSiretInfo} from '../clients/entreprise.api.client.js'
+import {fetchSirenInfo, fetchSiretInfo} from '../clients/entreprise.api.client.js'
 import {Config} from '../config/config.js'
 
 export const extract = async (website: string): Promise<Result> => {
@@ -11,13 +11,21 @@ export const extract = async (website: string): Promise<Result> => {
 
     const expanded = isInBlacklist(Config.blackList, expand(siretOrSirens))
 
-    const filtered = expanded
+    const filteredBySiret = expanded
       .filter(_ => _.siret?.valid === true)
       .flatMap(_ => _.siret?.siret)
       .filter((item): item is string => !!item)
 
-    const infosFromSirene = await fetchSiretInfo(filtered, Config.entrepriseToken)
-    const extractions = merge(website, toMap(infosFromSirene), expanded)
+    const siretInfosFromSirene = await fetchSiretInfo(filteredBySiret, Config.entrepriseToken)
+
+    const filteredBySiren = expanded
+      .filter(_ => _.siren?.valid === true)
+      .flatMap(_ => _.siren?.siren)
+      .filter((item): item is string => !!item)
+
+    const sirenInfosFromSirene = await fetchSirenInfo(filteredBySiren, Config.entrepriseToken)
+
+    const extractions = merge(website, toMap(siretInfosFromSirene), toMap(sirenInfosFromSirene), expanded)
 
     return {
       status: 'success',
@@ -186,14 +194,21 @@ const toMap = (sirenes: Sirene[]): Map<string, Sirene> => {
   }, new Map<string, Sirene>())
 }
 
-const merge = (url: string, sirenes: Map<string, Sirene>, siretsOrSirens: SiretOrSiren[]): Extraction[] => {
+const merge = (
+  url: string,
+  siretsInfos: Map<string, Sirene>,
+  sirensInfos: Map<string, Sirene>,
+  siretsOrSirens: SiretOrSiren[],
+): Extraction[] => {
   return siretsOrSirens.map(siretOrSiren => {
     return {
       website: url,
       siret: siretOrSiren.siret,
       siren: siretOrSiren.siren,
       links: siretOrSiren.links,
-      sirene: siretOrSiren.siret && sirenes.get(siretOrSiren.siret.siret),
+      sirene:
+        (siretOrSiren.siret && siretsInfos.get(siretOrSiren.siret.siret)) ||
+        (siretOrSiren.siren && sirensInfos.get(siretOrSiren.siren.siren)),
     }
   })
 }
