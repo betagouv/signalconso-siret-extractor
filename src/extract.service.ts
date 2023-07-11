@@ -55,7 +55,8 @@ const potentialPageFilter = (link: string): boolean => {
     lowercaseLink.includes('propos') || // page à propos
     lowercaseLink.includes('sommes') || // qui sommes nous ?
     lowercaseLink.includes('siret') ||
-    lowercaseLink.includes('siren')
+    lowercaseLink.includes('siren') ||
+    lowercaseLink.includes('politique')
   )
 }
 
