@@ -25,7 +25,12 @@ export const extract = async (website: string): Promise<Result> => {
 
     const sirenInfosFromSirene = await fetchSirenInfo(filteredBySiren, Config.entrepriseToken)
 
-    const extractions = merge(website, toMap(siretInfosFromSirene), toMap(sirenInfosFromSirene), expanded)
+    const extractions = merge(
+      website,
+      toMap(siretInfosFromSirene, sirene => sirene.siret),
+      toMap(sirenInfosFromSirene, sirene => sirene.siret.substring(0, 9)),
+      expanded,
+    )
 
     return {
       status: 'success',
@@ -187,9 +192,9 @@ const expand = (founds: SiretsOrSirens[]): SiretOrSiren[] => {
   return [...map.values()]
 }
 
-const toMap = (sirenes: Sirene[]): Map<string, Sirene> => {
+const toMap = (sirenes: Sirene[], extractKey: (sirene: Sirene) => string): Map<string, Sirene> => {
   return sirenes.reduce((map, obj) => {
-    map.set(obj.siret, obj)
+    map.set(extractKey(obj), obj)
     return map
   }, new Map<string, Sirene>())
 }
