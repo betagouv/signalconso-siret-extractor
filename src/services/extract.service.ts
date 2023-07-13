@@ -48,6 +48,7 @@ export const extract = async (website: string): Promise<Result> => {
         error: 'FAILED',
       }
     } else {
+      console.warn('Error while extracting Siret', e)
       throw e
     }
   }

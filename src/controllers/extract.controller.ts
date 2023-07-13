@@ -10,9 +10,8 @@ interface WebsiteRequest {
 }
 
 ExtractController.post('/', async (req: Request<{}, {}, WebsiteRequest>, res, next) => {
-  const apiKey = req.get('X-Api-Key')
-
   try {
+    const apiKey = req.get('X-Api-Key')
     if (apiKey && (await argon2.verify(Config.apiKeyHash, apiKey))) {
       const website = req.body.website
       if (!website) {
