@@ -5,9 +5,12 @@ import {ExceptionsHandler} from './middlewares/exceptions.handler.js'
 import {ExtractController} from './controllers/extract.controller.js'
 import {Config} from './config/config.js'
 import {ToolsController} from './controllers/tools.controller.js'
+import morgan from 'morgan'
 
 const app = express()
 const port = Config.port
+
+app.use(morgan('short'))
 
 /**
  * On dit à Express que l'on souhaite parser le body des requêtes en JSON

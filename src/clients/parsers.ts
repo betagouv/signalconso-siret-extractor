@@ -1,5 +1,24 @@
 import jsdom from 'jsdom'
 import {PageNotFoundException, WebsiteNotFoundException} from '../utils/exceptions.js'
+import {Config} from '../config/config.js'
+
+// TODO Add a delay to each fetch ? https://stackoverflow.com/a/73949725
+
+// https://dmitripavlutin.com/timeout-fetch-request/
+async function fetchWithTimeout(resource: URL, options: any = {}) {
+  const {timeout = Config.fetchTimeout} = options
+
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), timeout)
+
+  const response = await fetch(resource, {
+    ...options,
+    signal: controller.signal,
+  })
+  clearTimeout(id)
+
+  return response
+}
 
 export const headUrl = async (url: URL, manuelRedirect: boolean): Promise<Response> => {
   const options: any = manuelRedirect
@@ -21,7 +40,7 @@ export const headUrl = async (url: URL, manuelRedirect: boolean): Promise<Respon
         },
       }
   try {
-    return fetch(url, options)
+    return fetchWithTimeout(url, options)
   } catch {
     return Promise.reject(new PageNotFoundException(url))
   }
@@ -35,7 +54,7 @@ export const fetchUrl = async (url: URL): Promise<string> => {
       'Accept-Language': 'fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3',
     },
   }
-  const response = await fetch(url, options)
+  const response = await fetchWithTimeout(url, options)
   const body = await response.text()
 
   if (response.status >= 200 && response.status < 400) {
