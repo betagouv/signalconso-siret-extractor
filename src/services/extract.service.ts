@@ -103,6 +103,7 @@ const fromSitemap = async (sitemapUrl: string): Promise<SiretsOrSirens[]> => {
     const mainSitemap = await fetchUrl(new URL(sitemapUrl))
     const links = await parseSitemap(mainSitemap)
     const potentialLinks = findPotentialPages(links)
+    console.debug(`${potentialLinks.length} potential pages found from sitemap`)
 
     return findSiretsOrSirens(potentialLinks, fetchUrl)
   } catch {
@@ -115,6 +116,7 @@ const fromHomepage = async (url: string): Promise<SiretsOrSirens[]> => {
     const homepage = await fetchUrl(new URL(url))
     const links = await parseHomepage(url, homepage)
     const potentialLinks = findPotentialPages(links.concat(url))
+    console.debug(`${potentialLinks.length} potential pages found from homepage`)
 
     return findSiretsOrSirens(potentialLinks, fetchUrl)
   } catch {
@@ -127,16 +129,20 @@ const from = async (url: string): Promise<SiretsOrSirens[]> => {
     const sitemapUrl = await getSitemapUrl(url)
     const response = await headUrl(new URL(sitemapUrl), false)
     if (response.status >= 200 && response.status < 400) {
+      console.debug(`Sitemap found for ${url}`)
       const res = await fromSitemap(sitemapUrl)
       if (res.length === 0) {
+        console.debug(`No siret found from Sitemap for ${url}, trying homepage`)
         return fromHomepage(url)
       } else {
         return res
       }
     } else {
+      console.debug(`No Sitemap for ${url}, trying homepage`)
       return fromHomepage(url)
     }
-  } catch {
+  } catch (e: any) {
+    console.debug(`Error while fetching ${url}`, e)
     return Promise.resolve([])
   }
 }
