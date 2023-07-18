@@ -1,5 +1,5 @@
 import {findSiretsOrSirens} from '../siret.js'
-import {fetchUrl, headUrl, parseHomepage, parseSitemap} from '../clients/parsers.js'
+import {fetchUrl, fetchResponseUrl, parseHomepage, parseSitemap} from '../clients/parsers.js'
 import {SiretsOrSirens, Extraction, SiretOrSiren, Result, Sirene} from '../models/model.js'
 import {WebsiteFailedException, WebsiteNotFoundException} from '../utils/exceptions.js'
 import {fetchSirenInfo, fetchSiretInfo} from '../clients/entreprise.api.client.js'
@@ -103,6 +103,7 @@ const fromSitemap = async (sitemapUrl: string): Promise<SiretsOrSirens[]> => {
     const mainSitemap = await fetchUrl(new URL(sitemapUrl))
     const links = await parseSitemap(mainSitemap)
     const potentialLinks = findPotentialPages(links)
+    console.debug(`${potentialLinks.length} potential pages found from sitemap`)
 
     return findSiretsOrSirens(potentialLinks, fetchUrl)
   } catch {
@@ -115,6 +116,7 @@ const fromHomepage = async (url: string): Promise<SiretsOrSirens[]> => {
     const homepage = await fetchUrl(new URL(url))
     const links = await parseHomepage(url, homepage)
     const potentialLinks = findPotentialPages(links.concat(url))
+    console.debug(`${potentialLinks.length} potential pages found from homepage`)
 
     return findSiretsOrSirens(potentialLinks, fetchUrl)
   } catch {
@@ -125,18 +127,22 @@ const fromHomepage = async (url: string): Promise<SiretsOrSirens[]> => {
 const from = async (url: string): Promise<SiretsOrSirens[]> => {
   try {
     const sitemapUrl = await getSitemapUrl(url)
-    const response = await headUrl(new URL(sitemapUrl), false)
+    const response = await fetchResponseUrl(new URL(sitemapUrl), false)
     if (response.status >= 200 && response.status < 400) {
+      console.debug(`Sitemap found for ${url} at ${sitemapUrl}`)
       const res = await fromSitemap(sitemapUrl)
       if (res.length === 0) {
+        console.debug(`No siret found from Sitemap for ${url}, trying homepage`)
         return fromHomepage(url)
       } else {
         return res
       }
     } else {
+      console.debug(`No Sitemap for ${url}, trying homepage`)
       return fromHomepage(url)
     }
-  } catch {
+  } catch (e: any) {
+    console.debug(`Error while fetching ${url}`, e)
     return Promise.resolve([])
   }
 }
@@ -149,22 +155,30 @@ const finalUrl = async (
   if (scheme) {
     try {
       const url = `${scheme}${hostname}`
-      const response = await headUrl(new URL(url), true)
+      const response = await fetchResponseUrl(new URL(url), true)
       if (response.status >= 200 && response.status < 300) {
         return url
       } else if (response.status == 301 || response.status == 302) {
         const location = response.headers.get('location')
-        if (location) {
+        // relatives urls
+        if (location && location.startsWith('/')) {
+          return `${url}${location}`
+        } else if (location) {
           return location
         } else {
           return finalUrl(hostname, schemes)
         }
       } else {
+        console.debug(`Website at ${url} return ${response.status}`)
         return Promise.reject(new WebsiteFailedException(`Website returned ${response.status}`))
       }
     } catch {
       return finalUrl(hostname, schemes)
     }
+    // Hack because users tend to write websites as wwwtest.com without the '.'
+    // So we try to remove the 'www' part
+  } else if (hostname.match(/^www[^.]/)) {
+    return finalUrl(hostname.substring(3), ['http://www.', 'https://www.'])
   } else {
     return Promise.reject(new WebsiteNotFoundException(hostname))
   }
@@ -172,6 +186,7 @@ const finalUrl = async (
 
 const extractFrom = async (hostname: string): Promise<SiretsOrSirens[]> => {
   const url = await finalUrl(hostname)
+  console.debug(`Url computed for ${hostname}: ${url}`)
   return from(url)
 }
 
