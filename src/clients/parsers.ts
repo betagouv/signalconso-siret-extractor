@@ -9,7 +9,10 @@ async function fetchWithTimeout(resource: URL, options: any = {}) {
   const {timeout = Config.fetchTimeout} = options
 
   const controller = new AbortController()
-  const id = setTimeout(() => controller.abort(), timeout)
+  const id = setTimeout(() => {
+    console.debug(`Request to ${resource.href} cancelled`)
+    return controller.abort()
+  }, timeout)
 
   const response = await fetch(resource, {
     ...options,
@@ -20,10 +23,11 @@ async function fetchWithTimeout(resource: URL, options: any = {}) {
   return response
 }
 
-export const headUrl = async (url: URL, manuelRedirect: boolean): Promise<Response> => {
+// Previously was using HEAD instead of GET but some website have a proxy blocking it (502 is returned)
+export const fetchResponseUrl = async (url: URL, manuelRedirect: boolean): Promise<Response> => {
   const options: any = manuelRedirect
     ? {
-        method: 'HEAD',
+        method: 'GET',
         redirect: 'manual',
         headers: {
           'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/114.0',
@@ -32,7 +36,7 @@ export const headUrl = async (url: URL, manuelRedirect: boolean): Promise<Respon
         },
       }
     : {
-        method: 'HEAD',
+        method: 'GET',
         headers: {
           'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/114.0',
           Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
@@ -82,6 +86,26 @@ export const parseSitemap = async (xml: string): Promise<string[]> => {
         res.push(promise)
       } else {
         res.push(Promise.resolve([node.textContent]))
+      }
+      // To handle CDATA nodes
+      // https://github.com/jsdom/jsdom/issues/618
+    } else if (node.childNodes.length > 0 && node.childNodes[0].nodeType === node.COMMENT_NODE) {
+      const raw = node.childNodes[0].textContent
+      const match = raw?.match(/^\[CDATA\[(.*)\]\]$/)
+
+      if (match && match[1]) {
+        const content = match[1]
+        const url = new URL(content)
+        if (url.pathname.endsWith('.xml')) {
+          const promise = fetchUrl(url)
+            .then(parseSitemap)
+            .catch(error => {
+              return Promise.resolve([])
+            })
+          res.push(promise)
+        } else {
+          res.push(Promise.resolve([content]))
+        }
       }
     }
   })
