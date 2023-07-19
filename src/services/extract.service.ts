@@ -127,6 +127,7 @@ const fromHomepage = async (url: string): Promise<SiretsOrSirens[]> => {
 const from = async (url: string): Promise<SiretsOrSirens[]> => {
   try {
     const sitemapUrl = await getSitemapUrl(url)
+    console.debug(`Computed sitemap url: ${sitemapUrl}`)
     const response = await fetchResponseUrl(new URL(sitemapUrl), false)
     if (response.status >= 200 && response.status < 400) {
       console.debug(`Sitemap found for ${url} at ${sitemapUrl}`)
@@ -138,7 +139,7 @@ const from = async (url: string): Promise<SiretsOrSirens[]> => {
         return res
       }
     } else {
-      console.debug(`No Sitemap for ${url}, trying homepage`)
+      console.debug(`No Sitemap at ${sitemapUrl} (status ${response.status}), trying homepage`)
       return fromHomepage(url)
     }
   } catch (e: any) {
