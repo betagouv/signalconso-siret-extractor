@@ -1,5 +1,5 @@
 import jsdom from 'jsdom'
-import {PageNotFoundException, WebsiteNotFoundException} from '../utils/exceptions.js'
+import {PageNotFoundException} from '../utils/exceptions.js'
 import {Config} from '../config/config.js'
 
 // TODO Add a delay to each fetch ? https://stackoverflow.com/a/73949725
@@ -64,6 +64,7 @@ export const fetchUrl = async (url: URL): Promise<string> => {
   if (response.status >= 200 && response.status < 400) {
     return body
   } else {
+    console.debug(`Request to ${url.href} returned status ${response.status}`)
     return Promise.reject(new PageNotFoundException(url))
   }
 }
