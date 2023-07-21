@@ -1,7 +1,7 @@
 import {findSiretsOrSirens} from '../siret.js'
 import {fetchUrl, fetchResponseUrl, parseHomepage, parseSitemap} from '../clients/parsers.js'
 import {SiretsOrSirens, Extraction, SiretOrSiren, Result, Sirene} from '../models/model.js'
-import {WebsiteFailedException, WebsiteNotFoundException} from '../utils/exceptions.js'
+import {AntiBotException, WebsiteFailedException, WebsiteNotFoundException} from '../utils/exceptions.js'
 import {fetchSirenInfo, fetchSiretInfo} from '../clients/entreprise.api.client.js'
 import {Config} from '../config/config.js'
 
@@ -47,6 +47,11 @@ export const extract = async (website: string): Promise<Result> => {
         status: 'failure',
         error: 'FAILED',
       }
+    } else if (e instanceof AntiBotException) {
+      return {
+        status: 'failure',
+        error: 'ANTIBOT',
+      }
     } else {
       console.warn('Error while extracting Siret', e)
       throw e
@@ -88,13 +93,13 @@ export const isInBlacklist = (sirens: string[], siretsOrSirens: SiretOrSiren[]) 
 
 export const findPotentialPages = (links: string[]): string[] => links.filter(link => potentialPageFilter(link))
 
-const getSitemapUrl = async (url: string) => {
+const getSitemapUrl = async (url: string): Promise<string[]> => {
   const robotsTxt = await fetchUrl(new URL('/robots.txt', url))
-  const sitemapLine = robotsTxt.split('\n').find(line => line.match(/^Sitemap/g))
-  if (sitemapLine) {
-    return sitemapLine.split('Sitemap: ')[1]
+  const sitemapLines = robotsTxt.split('\n').filter(line => line.match(/^Sitemap/g))
+  if (sitemapLines.length !== 0) {
+    return sitemapLines.map(_ => _.split('Sitemap: ')[1])
   } else {
-    return new URL('/sitemap.xml', url).href
+    return [new URL('/sitemap.xml', url).href]
   }
 }
 
@@ -107,8 +112,16 @@ const fromSitemap = async (sitemapUrl: string): Promise<SiretsOrSirens[]> => {
 
     return findSiretsOrSirens(potentialLinks, fetchUrl)
   } catch {
+    console.debug(`No Sitemap at ${sitemapUrl}`)
     return Promise.resolve([])
   }
+}
+
+const fromSitemaps = async (sitemapUrls: string[]): Promise<SiretsOrSirens[]> => {
+  const results = sitemapUrls.map(sitemapUrl => fromSitemap(sitemapUrl))
+  return Promise.all(results)
+    .then(_ => _.flat())
+    .then(_ => _.filter((link, index, self) => self.indexOf(link) === index))
 }
 
 const fromHomepage = async (url: string): Promise<SiretsOrSirens[]> => {
@@ -120,26 +133,21 @@ const fromHomepage = async (url: string): Promise<SiretsOrSirens[]> => {
 
     return findSiretsOrSirens(potentialLinks, fetchUrl)
   } catch {
+    console.debug(`No valid homepage at ${url}`)
     return Promise.resolve([])
   }
 }
 
 const from = async (url: string): Promise<SiretsOrSirens[]> => {
   try {
-    const sitemapUrl = await getSitemapUrl(url)
-    const response = await fetchResponseUrl(new URL(sitemapUrl), false)
-    if (response.status >= 200 && response.status < 400) {
-      console.debug(`Sitemap found for ${url} at ${sitemapUrl}`)
-      const res = await fromSitemap(sitemapUrl)
-      if (res.length === 0) {
-        console.debug(`No siret found from Sitemap for ${url}, trying homepage`)
-        return fromHomepage(url)
-      } else {
-        return res
-      }
-    } else {
-      console.debug(`No Sitemap for ${url}, trying homepage`)
+    const sitemapUrls = await getSitemapUrl(url)
+    console.debug(`Computed sitemap url: ${sitemapUrls}`)
+    const res = await fromSitemaps(sitemapUrls)
+    if (res.length === 0) {
+      console.debug(`No siret found from Sitemap for ${url}, trying homepage`)
       return fromHomepage(url)
+    } else {
+      return res
     }
   } catch (e: any) {
     console.debug(`Error while fetching ${url}`, e)
@@ -187,7 +195,19 @@ const finalUrl = async (
 const extractFrom = async (hostname: string): Promise<SiretsOrSirens[]> => {
   const url = await finalUrl(hostname)
   console.debug(`Url computed for ${hostname}: ${url}`)
-  return from(url)
+  const result = await from(url)
+
+  if (result.length === 0) {
+    const response = await fetchResponseUrl(new URL(url), false)
+    const page = await response.text()
+    if (response.status === 403 || page.includes('Enable JavaScript and cookies to continue')) {
+      throw new AntiBotException('An anti protection is active')
+    } else {
+      return result
+    }
+  } else {
+    return result
+  }
 }
 
 const expand = (founds: SiretsOrSirens[]): SiretOrSiren[] => {

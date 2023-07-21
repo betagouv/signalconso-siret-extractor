@@ -53,6 +53,12 @@ export class WebsiteFailedException extends BadRequestException {
   }
 }
 
+export class AntiBotException extends BadRequestException {
+  constructor(error: string) {
+    super(error)
+  }
+}
+
 export interface GeneralException {
   error: any
 }
