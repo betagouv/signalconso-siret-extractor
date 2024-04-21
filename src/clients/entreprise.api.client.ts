@@ -1,7 +1,8 @@
 import {Sirene} from '../models/model.js'
+import {Config} from '../config/config.js'
 
 export const fetchSiretInfo = async (sirets: string[], token: string): Promise<Sirene[]> => {
-  const res = await fetch('https://entreprise.signal.conso.gouv.fr/api/companies/search', {
+  const res = await fetch(`${Config.entrepriseUrl}/api/companies/search`, {
     method: 'POST',
     body: JSON.stringify(sirets),
     headers: {
@@ -13,7 +14,7 @@ export const fetchSiretInfo = async (sirets: string[], token: string): Promise<S
 }
 
 export const fetchSirenInfo = async (sirens: string[], token: string): Promise<Sirene[]> => {
-  const res = await fetch('https://entreprise.signal.conso.gouv.fr/api/companies/siren/search', {
+  const res = await fetch(`${Config.entrepriseUrl}/api/companies/siren/search`, {
     method: 'POST',
     body: JSON.stringify(sirens),
     headers: {
