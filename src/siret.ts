@@ -3,6 +3,7 @@ import {SiretsOrSirens, Siren, Siret} from './models/model.js'
 
 const siretRegex = /\b\d{3}(?:\s?\d{3}){2}(?:\s?\d{5})\b/g
 const sirenRegex = /\b\d{3}(?:\s?\d{3}){2}\b/g
+const tvaNumberRegex = /\bFR(?:\s?\d{2})((?:\s?\d{3}){3})\b/g
 
 const removeWhitespaces = (siret: string): string => siret.replace(/\s/g, '')
 
@@ -46,14 +47,17 @@ export const isSirenValid = (siren: string): boolean => {
 export const findSiretsOrSirensInPage = (page: string | null | undefined): [Siret[], Siren[]] | null => {
   const matchingSirets = page?.match(siretRegex) ?? []
   const matchingSirens = page?.match(sirenRegex) ?? []
+  const matchingTVANumbers = [...(page?.matchAll(tvaNumberRegex) ?? [])].map(group => group[1])
 
   const sirets = matchingSirets.map(removeWhitespaces).map(siret => {
     return {siret, valid: isSiretValid(siret)}
   })
-  const sirens = matchingSirens.map(removeWhitespaces).map(siren => {
+  const sirens = matchingSirens.map(removeWhitespaces)
+  const sirensFromTVA = matchingTVANumbers.map(removeWhitespaces)
+  const allSirens = [...new Set(sirens.concat(sirensFromTVA))].map(siren => {
     return {siren, valid: isSirenValid(siren)}
   })
-  if (sirets.length !== 0 || sirens.length !== 0) return [sirets, sirens]
+  if (sirets.length !== 0 || allSirens.length !== 0) return [sirets, allSirens]
   else return null
 }
 

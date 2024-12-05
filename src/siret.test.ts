@@ -73,6 +73,18 @@ describe('Siret or Siren', () => {
             [{siren: '123456789', valid: false}],
           ]
           expect(findSiretsOrSirensInPage(page)).toEqual(expected)
+        }),
+        test('should extract correctly sirens in a TVA numbers', () => {
+          const page = 'tva number FR32123456789 FR 00 987 654 321, 111 222333'
+          const expected = [
+            [],
+            [
+              {siren: '987654321', valid: false},
+              {siren: '111222333', valid: false},
+              {siren: '123456789', valid: false},
+            ],
+          ]
+          expect(findSiretsOrSirensInPage(page)).toEqual(expected)
         })
     })
 })
