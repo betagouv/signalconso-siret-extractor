@@ -26,29 +26,32 @@ export const extract = async (website: string): Promise<Result> => {
     const sirenInfosFromSirene = await fetchSirenInfo(filteredBySiren, Config.entrepriseToken)
 
     const extractions = merge(
-      website,
       toMap(siretInfosFromSirene, sirene => sirene.siret),
       toMap(sirenInfosFromSirene, sirene => sirene.siret.substring(0, 9)),
       expanded,
     )
 
     return {
+      website,
       status: 'success',
       extractions: extractions,
     }
   } catch (e: any) {
     if (e instanceof WebsiteNotFoundException) {
       return {
+        website,
         status: 'failure',
         error: 'NOT_FOUND',
       }
     } else if (e instanceof WebsiteFailedException) {
       return {
+        website,
         status: 'failure',
         error: 'FAILED',
       }
     } else if (e instanceof AntiBotException) {
       return {
+        website,
         status: 'failure',
         error: 'ANTIBOT',
       }
@@ -236,14 +239,12 @@ const toMap = (sirenes: Sirene[], extractKey: (sirene: Sirene) => string): Map<s
 }
 
 const merge = (
-  url: string,
   siretsInfos: Map<string, Sirene>,
   sirensInfos: Map<string, Sirene>,
   siretsOrSirens: SiretOrSiren[],
 ): Extraction[] => {
   return siretsOrSirens.map(siretOrSiren => {
     return {
-      website: url,
       siret: siretOrSiren.siret,
       siren: siretOrSiren.siren,
       links: siretOrSiren.links,
