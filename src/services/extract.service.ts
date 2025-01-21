@@ -97,11 +97,16 @@ export const isInBlacklist = (sirens: string[], siretsOrSirens: SiretOrSiren[]) 
 export const findPotentialPages = (links: string[]): string[] => links.filter(link => potentialPageFilter(link))
 
 const getSitemapUrl = async (url: string): Promise<string[]> => {
-  const robotsTxt = await fetchUrl(new URL('/robots.txt', url))
-  const sitemapLines = robotsTxt.split('\n').filter(line => line.match(/^Sitemap/g))
-  if (sitemapLines.length !== 0) {
-    return sitemapLines.map(_ => _.split('Sitemap: ')[1])
-  } else {
+  try {
+    const robotsTxt = await fetchUrl(new URL('/robots.txt', url))
+    const sitemapLines = robotsTxt.split('\n').filter(line => line.match(/^Sitemap/g))
+    if (sitemapLines.length !== 0) {
+      return sitemapLines.map(_ => _.split('Sitemap: ')[1])
+    } else {
+      return [new URL('/sitemap.xml', url).href]
+    }
+  } catch (e) {
+    console.debug(`No robots.txt found`)
     return [new URL('/sitemap.xml', url).href]
   }
 }
