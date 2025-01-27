@@ -21,7 +21,6 @@ export interface SiretOrSiren {
 }
 
 export interface Extraction {
-  website: string
   siret?: Siret
   siren?: Siren
   links: string[]
@@ -29,6 +28,7 @@ export interface Extraction {
 }
 
 export interface Result {
+  website: string
   status: 'success' | 'failure'
   extractions?: Extraction[]
   error?: string
