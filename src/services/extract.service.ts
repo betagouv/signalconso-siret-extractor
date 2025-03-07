@@ -17,7 +17,7 @@ export const extract = async (website: string): Promise<Result> => {
       .filter((item): item is string => !!item)
 
     const siretInfosFromSirene = await fetchSiretInfo(filteredBySiret, Config.entrepriseToken)
-    console.debug(`Entreprise API siret returned : ${siretInfosFromSirene}`)
+    console.debug('Entreprise API siret returned', siretInfosFromSirene)
 
     const filteredBySiren = expanded
       .filter(_ => _.siren?.valid === true)
@@ -25,7 +25,7 @@ export const extract = async (website: string): Promise<Result> => {
       .filter((item): item is string => !!item)
 
     const sirenInfosFromSirene = await fetchSirenInfo(filteredBySiren, Config.entrepriseToken)
-    console.debug(`Entreprise API siren returned : ${sirenInfosFromSirene}`)
+    console.debug('Entreprise API siren returned', sirenInfosFromSirene)
 
     const extractions = merge(
       toMap(siretInfosFromSirene, sirene => sirene.siret),
