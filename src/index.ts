@@ -5,6 +5,7 @@ import {ExceptionsHandler} from './middlewares/exceptions.handler.js'
 import {ExtractController} from './controllers/extract.controller.js'
 import {Config} from './config/config.js'
 import {ToolsController} from './controllers/tools.controller.js'
+import {buildInfo, HealthController} from './controllers/health.controller.js'
 import morgan from 'morgan'
 
 const app = express()
@@ -25,6 +26,11 @@ app.use(express.json())
  */
 app.use(cors())
 
+/**
+ * Health check, renvoie la version déployée
+ */
+app.use('/', HealthController)
+
 app.use('/extract', ExtractController)
 
 app.use('/tools', ToolsController)
@@ -41,5 +47,5 @@ app.all('*', UnknownRoutesHandler)
 app.use(ExceptionsHandler)
 
 app.listen(port, () => {
-  console.log(`[server]: Server is running at http://localhost:${port}`)
+  console.log(`[server]: Server v${buildInfo.version} (${buildInfo.gitCommit}) is running at http://localhost:${port}`)
 })
